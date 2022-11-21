@@ -1,34 +1,27 @@
 import numpy as np
-from scipy.stats import norm
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
-import metropolis_hastings as mh
 from distributions import *
 
-# define parameters
-BURN_IN = 1000
+### define some example cost functions ###
+def sos_cost(x):
+    vec = np.ones((2,2))
+    return np.sum(np.power(x - vec, 2)) # sum of squares cost
 
-# define target distribution
-t1 = Normal(-2, 1)
-t2 = Normal(2, 1)
-target = SumDistribution(t1, t2)
+def Branin(x): 
+    return np.sum(jnp.power((x[:,1] - (5.1/(4*np.pi**2))*jnp.power(x[:,0], 2) + (5/np.pi)*x[:,0] - 6), 2) + 10*(1-1/(8*jnp.pi))*jnp.cos(x[:,0]) + 10)
 
-# define proposal distribution
-proposal = ShiftedNormal(3)
+def Beale(x):
+    return (1.5 - x[:,0] + x[:,0]*x[:,1])**2 + (2.25 - x[:,0] + x[:,0]*x[:,1]**2)**2 + (2.625 - x[0] + x[:,0]*x[:,1]**3)**2
 
-# initialize Metropolis-Hastings class
-mh_test = mh.MetropolisHastings(target=target, proposal=proposal, x0=1, n=10_000)
+### define the target distribution & obtain samples ###
+target = Boltzmann(shape=(2,2), cost=sos_cost, beta=1)
+samples = target.sample(n=100000)
 
-# run Metropolis-Hastings algorithm
-mh_test.run()
-
-# collect samples
-samples = mh_test.x[BURN_IN:]
-
-# print acceptance rate
-print("ACCEPTANCE RATE: ", mh_test.acceptance_rate)
-
-# plot samples
+### plot the samples ###
 x_axis = np.arange(-5, 5, 0.01)
-plt.hist(samples, bins=100, density=True)
-plt.plot(x_axis, np.exp(target.logpdf(x_axis)))
+# get the histogram for marginal at index [0,0]
+plt.hist(samples[:,0,0], bins=100, density=True)
+# plot the analytic marginal (in this case)
+plt.plot(x_axis, np.exp(-(x_axis - 1)**2))
 plt.show()
