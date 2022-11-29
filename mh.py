@@ -1,5 +1,4 @@
 import numpy as np
-from distributions import *
 
 class MetropolisHastings():
     'Metropolis-Hastings algorithm for drawing samples from a distribution to be approximated.'

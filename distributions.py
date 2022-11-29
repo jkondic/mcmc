@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
+from jax import grad
 import sys
-import mh
+import mh, hmc, mala
 
 class Distribution(ABC):
     'An abstract class initializing a distribution'
@@ -74,16 +75,17 @@ class Boltzmann(Distribution):
     'A standard Boltzmann distribution, p(x) = e^{-beta * cost(x)}'
 
     # cost is a user-defined function that takes as input a tensor x of shape (shape) and returns a scalar
-    def __init__(self, shape, cost, beta=1, sampler='mh'):
+    def __init__(self, shape, cost, sampler, beta=1):
         self.shape = shape
         self.cost = cost
         self.beta = beta
         self.sampler = sampler
+        self.grad_log = grad(self.logpdf)
         super().__init__()
     
 
     # n is number of samples, and burn_is is the number of samples to ignore at beginning before convergence
-    def sample(self, n = 1, burn_in = 1000):
+    def sample(self, n = 1, burn_in = 100):
         'draw n samples from the Boltzmann distribution using Metropolis-Hastings.'
         
         if self.sampler == 'mh':
@@ -100,11 +102,33 @@ class Boltzmann(Distribution):
             return sampler.x[burn_in:]
         
         elif self.sampler == 'hmc':
-            print('TO IMPLEMENT')
-            return -1
+            # initialize sampler object
+            sampler = hmc.HamiltonianMonteCarlo(target=self, x0=np.zeros(self.shape), n=n+burn_in, L=3, p=0.14)
+
+            # run Metropolis-Hastings
+            sampler.run()
+
+            # TESTING: print acceptance rate
+            print("ACCEPTANCE RATE: ", sampler.acceptance_rate)
+
+            # return result, ignoring first (burn_in) samples
+            return sampler.x[burn_in:]
+
+        elif self.sampler == 'mala':
+            # initialize sampler object
+            sampler = mala.MALA(target=self, x0=np.zeros(self.shape), n=n+burn_in, tau=0.5)
+
+            # run Metropolis-Hastings
+            sampler.run()
+
+            # TESTING: print acceptance rate
+            print("ACCEPTANCE RATE: ", sampler.acceptance_rate)
+
+            # return result, ignoring first (burn_in) samples
+            return sampler.x[burn_in:]
         
         else:
             sys.exit('ERRROR: Invalid sampler specified')
-
+            
     def logpdf(self, x):
         return -self.beta*self.cost(x)
